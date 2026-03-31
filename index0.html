@@ -1,0 +1,1793 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#000000">
+<title>ALTMESSENGER</title>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#000;--card:#1c1c1e;--card2:#2c2c2e;--accent:#007aff;--text:#fff;--text2:#8e8e93;
+  --danger:#ff3b30;--success:#30d158;--border:#38383a;--input:#1c1c1e;
+}
+html,body{
+  height:100%;overflow:hidden;
+  font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue',sans-serif;
+  background:var(--bg);color:var(--text);
+  -webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;
+  user-select:none;-webkit-user-select:none;
+  overscroll-behavior:none;
+}
+.msg-text{user-select:text;-webkit-user-select:text;}
+*{scrollbar-width:none;-ms-overflow-style:none;}
+*::-webkit-scrollbar{display:none;}
+input,textarea,button{font-family:inherit;outline:none;border:none;}
+input,textarea{
+  background:var(--input);color:var(--text);border:1px solid var(--border);
+  border-radius:12px;padding:12px 16px;font-size:16px;width:100%;
+  transition:border-color .2s;-webkit-appearance:none;appearance:none;
+}
+input:focus,textarea:focus{border-color:var(--accent);}
+textarea{resize:none;min-height:60px;}
+button{
+  cursor:pointer;background:var(--accent);color:#fff;border-radius:12px;
+  padding:12px 24px;font-size:15px;font-weight:600;
+  transition:opacity .12s,transform .1s;touch-action:manipulation;
+}
+button:active{transform:scale(.96);opacity:.78;}
+.btn-secondary{background:var(--card2);color:var(--text);}
+.btn-danger{background:var(--danger);}
+
+#app{width:100%;height:100%;max-width:480px;margin:0 auto;position:relative;overflow:hidden;}
+.screen{position:absolute;inset:0;display:none;flex-direction:column;z-index:1;}
+.screen.active{display:flex;}
+
+/* ── BAN OVERLAY ── */
+#banOverlay{
+  position:fixed;inset:0;background:#000;z-index:99999;
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  padding:32px;text-align:center;
+}
+#banOverlay.show{display:flex;}
+#banOverlay .ban-icon{font-size:64px;margin-bottom:20px;}
+#banOverlay h2{font-size:22px;font-weight:800;color:var(--danger);margin-bottom:12px;}
+#banOverlay p{font-size:15px;color:var(--text2);line-height:1.6;margin-bottom:20px;}
+#banOverlay a{color:var(--accent);font-size:14px;}
+
+/* ── AUTH ── */
+#authScreen{justify-content:center;align-items:center;padding:24px;padding-bottom:calc(24px + env(safe-area-inset-bottom,0px));}
+.auth-container{width:100%;max-width:380px;}
+.auth-logo{text-align:center;margin-bottom:40px;}
+.auth-logo h1{font-size:28px;font-weight:800;letter-spacing:2px;background:linear-gradient(135deg,#007aff,#5856d6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.auth-logo p{color:var(--text2);font-size:13px;margin-top:6px;}
+.auth-tabs{display:flex;gap:4px;background:var(--card);border-radius:12px;padding:4px;margin-bottom:24px;}
+.auth-tab{flex:1;text-align:center;padding:10px;border-radius:10px;font-size:14px;font-weight:600;color:var(--text2);background:transparent;transition:all .2s;cursor:pointer;touch-action:manipulation;}
+.auth-tab.active{background:var(--accent);color:#fff;}
+.auth-form{display:flex;flex-direction:column;gap:12px;}
+.field-hint{font-size:11px;color:var(--text2);margin-top:-6px;padding-left:4px;}
+.auth-error{color:var(--danger);font-size:13px;text-align:center;min-height:18px;}
+
+/* ── HEADER ── */
+.main-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:calc(12px + env(safe-area-inset-top,0px)) 16px 12px;
+  border-bottom:1px solid var(--border);
+  background:rgba(0,0,0,.9);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  z-index:10;flex-shrink:0;
+}
+.main-header h2{font-size:18px;font-weight:700;letter-spacing:1px;}
+.header-actions{display:flex;gap:8px;}
+.header-actions button,.icon-btn{
+  width:36px;height:36px;border-radius:50%;padding:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;background:var(--card);touch-action:manipulation;
+}
+
+/* ── SEARCH ── */
+.search-bar{padding:8px 16px;flex-shrink:0;}
+.search-wrap{position:relative;}
+.search-bar input{background:var(--card);border-radius:10px;padding:10px 14px 10px 36px;font-size:14px;border:none;}
+.search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text2);font-size:14px;pointer-events:none;}
+
+/* ── CHAT LIST ── */
+.chat-list{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
+.chat-item{display:flex;align-items:center;gap:12px;padding:12px 16px;transition:background .1s;cursor:pointer;touch-action:manipulation;}
+.chat-item:active{background:var(--card);}
+.ava{width:52px;height:52px;border-radius:50%;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;flex-shrink:0;overflow:hidden;cursor:pointer;}
+.ava.sm{width:36px;height:36px;font-size:14px;}
+.ava img{width:100%;height:100%;object-fit:cover;}
+.chat-info{flex:1;min-width:0;}
+.chat-name-row{font-size:15px;font-weight:600;display:flex;align-items:center;gap:4px;white-space:nowrap;overflow:hidden;}
+.chat-preview{font-size:13px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
+.chat-time{font-size:11px;color:var(--text2);flex-shrink:0;align-self:flex-start;margin-top:3px;}
+.verified{color:var(--accent);font-size:13px;}
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;color:var(--text2);}
+.em{font-size:48px;margin-bottom:12px;}
+.empty-state p{font-size:14px;text-align:center;line-height:1.5;}
+
+/* ── TAB BAR ── */
+.tab-bar{
+  display:flex;flex-shrink:0;border-top:1px solid var(--border);
+  background:rgba(0,0,0,.9);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  padding:6px 0 calc(6px + env(safe-area-inset-bottom,0px));
+}
+.tab-bar button{flex:1;background:transparent;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 0;font-size:10px;color:var(--text2);border-radius:0;touch-action:manipulation;}
+.tab-bar button.active{color:var(--accent);}
+.tab-icon{font-size:22px;line-height:1;}
+
+/* ── CHAT SCREEN ── */
+#chatScreen{z-index:5;}
+.chat-header{
+  display:flex;align-items:center;gap:10px;
+  padding:calc(10px + env(safe-area-inset-top,0px)) 12px 10px;
+  border-bottom:1px solid var(--border);
+  background:rgba(0,0,0,.9);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  z-index:10;flex-shrink:0;cursor:pointer;
+}
+.back-btn{background:transparent;color:var(--accent);font-size:26px;padding:2px 6px;width:auto;flex-shrink:0;touch-action:manipulation;}
+.chat-title{flex:1;min-width:0;}
+.chat-title h3{font-size:15px;font-weight:600;display:flex;align-items:center;gap:4px;white-space:nowrap;overflow:hidden;}
+.chat-title p{font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.gs-btn{width:34px;height:34px;border-radius:50%;padding:0;display:flex;align-items:center;justify-content:center;font-size:17px;background:var(--card);flex-shrink:0;touch-action:manipulation;}
+
+/* ── MESSAGES ── */
+.messages-area{flex:1;overflow-y:auto;padding:10px 14px;display:flex;flex-direction:column;gap:3px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
+.msg{max-width:80%;padding:8px 12px;border-radius:18px;font-size:15px;line-height:1.45;word-break:break-word;animation:msgIn .18s ease;position:relative;}
+@keyframes msgIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+.msg.sent{align-self:flex-end;background:var(--accent);color:#fff;border-bottom-right-radius:4px;}
+.msg.recv{align-self:flex-start;background:var(--card);border-bottom-left-radius:4px;}
+.msg.deleted-local{opacity:.4;}
+.msg-sender{font-size:11px;font-weight:600;color:#5ac8fa;margin-bottom:3px;display:flex;align-items:center;gap:3px;cursor:pointer;}
+.msg-time{font-size:10px;opacity:.55;text-align:right;margin-top:3px;display:flex;align-items:center;justify-content:flex-end;gap:4px;}
+.msg-edited{font-size:9px;opacity:.55;font-style:italic;}
+.msg-media{margin:4px 0;}
+.msg-media img{max-width:100%;max-height:280px;border-radius:12px;display:block;cursor:pointer;object-fit:cover;}
+.msg-media video{max-width:100%;max-height:280px;border-radius:12px;display:block;}
+
+/* Reactions */
+.msg-reactions{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;}
+.reaction-pill{
+  display:flex;align-items:center;gap:3px;
+  background:rgba(255,255,255,.1);border-radius:10px;
+  padding:2px 7px;font-size:13px;cursor:pointer;
+  transition:background .15s;border:1px solid transparent;
+  touch-action:manipulation;
+}
+.reaction-pill.mine{background:rgba(0,122,255,.22);border-color:rgba(0,122,255,.4);}
+.reaction-pill span{font-size:11px;opacity:.8;}
+.reaction-add{
+  width:26px;height:22px;border-radius:10px;padding:0;
+  background:rgba(255,255,255,.08);font-size:14px;display:flex;align-items:center;justify-content:center;
+  color:var(--text2);touch-action:manipulation;
+}
+
+/* Context menu */
+.ctx-menu{
+  position:fixed;z-index:50000;background:var(--card);border-radius:14px;
+  min-width:180px;overflow:hidden;
+  box-shadow:0 8px 32px rgba(0,0,0,.6);
+  animation:ctxIn .15s ease;
+}
+@keyframes ctxIn{from{opacity:0;transform:scale(.92);}to{opacity:1;transform:scale(1);}}
+.ctx-item{
+  display:flex;align-items:center;gap:10px;padding:12px 16px;
+  font-size:14px;cursor:pointer;transition:background .1s;touch-action:manipulation;
+}
+.ctx-item:active{background:var(--card2);}
+.ctx-item.danger{color:var(--danger);}
+#ctxOverlay{position:fixed;inset:0;z-index:49999;}
+
+/* Reaction picker */
+.reaction-picker{
+  position:fixed;z-index:50001;background:var(--card);border-radius:20px;
+  padding:10px 12px;display:flex;gap:6px;
+  box-shadow:0 8px 32px rgba(0,0,0,.6);
+  animation:ctxIn .15s ease;
+}
+.rp-btn{font-size:22px;cursor:pointer;padding:4px;border-radius:8px;transition:transform .1s;touch-action:manipulation;}
+.rp-btn:active{transform:scale(1.3);}
+
+/* Edit bar */
+.edit-bar{
+  display:none;padding:6px 14px;background:rgba(0,122,255,.12);
+  border-top:1px solid rgba(0,122,255,.25);font-size:12px;color:var(--accent);
+  flex-direction:row;align-items:center;gap:8px;flex-shrink:0;
+}
+.edit-bar.show{display:flex;}
+.edit-bar-label{flex:1;}
+.edit-cancel{background:transparent;color:var(--text2);padding:4px 8px;font-size:12px;width:auto;}
+
+/* Reply hint */
+.reply-bar{
+  display:none;padding:6px 14px;background:rgba(255,255,255,.05);
+  border-top:1px solid var(--border);font-size:12px;color:var(--text2);
+  flex-direction:row;align-items:center;gap:8px;flex-shrink:0;
+}
+
+/* System message */
+.msg-system{
+  align-self:center;background:rgba(255,255,255,.07);color:var(--text2);
+  border-radius:10px;padding:4px 12px;font-size:11px;margin:4px 0;
+  max-width:90%;text-align:center;
+}
+
+/* ── INPUT BAR ── */
+.msg-input-bar{
+  display:flex;align-items:center;gap:6px;
+  padding:8px 10px calc(8px + env(safe-area-inset-bottom,0px));
+  border-top:1px solid var(--border);
+  background:rgba(0,0,0,.95);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  flex-shrink:0;
+}
+.attach-btn{width:36px;height:36px;border-radius:50%;padding:0;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:20px;background:var(--card);touch-action:manipulation;}
+#fileInput{display:none;}
+.msg-input-wrap{flex:1;position:relative;}
+#msgInput{border-radius:20px;padding:9px 16px;font-size:15px;background:var(--card);border:none;width:100%;}
+.upload-bar{display:none;position:absolute;bottom:calc(100% + 6px);left:0;right:0;background:var(--card);border-radius:10px;padding:8px 12px;font-size:12px;color:var(--text2);align-items:center;gap:8px;border:1px solid var(--border);}
+.upload-bar.show{display:flex;}
+.send-btn{width:36px;height:36px;border-radius:50%;padding:0;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;touch-action:manipulation;}
+
+/* ── SETTINGS ── */
+#settingsScreen{z-index:4;}
+.settings-list{flex:1;overflow-y:auto;padding:8px 0;}
+.settings-item{display:flex;align-items:center;gap:14px;padding:14px 16px;cursor:pointer;transition:background .1s;touch-action:manipulation;}
+.settings-item:active{background:var(--card);}
+.si-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.si-label{font-size:15px;flex:1;}
+.si-arrow{color:var(--text2);font-size:18px;}
+.settings-section-title{font-size:12px;color:var(--text2);text-transform:uppercase;padding:16px 16px 6px;letter-spacing:.5px;}
+
+/* ── ADMIN ── */
+#adminScreen{z-index:6;}
+.admin-header{display:flex;align-items:center;gap:12px;padding:calc(12px + env(safe-area-inset-top,0px)) 16px 12px;border-bottom:1px solid var(--border);background:rgba(0,0,0,.9);backdrop-filter:blur(20px);flex-shrink:0;}
+.admin-badge{background:var(--accent);color:#fff;font-size:10px;padding:2px 8px;border-radius:6px;font-weight:700;}
+.ticket-list{flex:1;overflow-y:auto;}
+.ticket-item{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s;touch-action:manipulation;}
+.ticket-item:active{background:var(--card);}
+.ticket-ava{width:44px;height:44px;border-radius:50%;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0;overflow:hidden;}
+.ticket-ava img{width:100%;height:100%;object-fit:cover;}
+.ticket-info{flex:1;min-width:0;}
+.ticket-name{font-size:14px;font-weight:600;}
+.ticket-preview{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
+
+/* ── CREATE GROUP ── */
+#createGroupScreen{z-index:6;}
+.create-header{display:flex;align-items:center;gap:12px;padding:calc(12px + env(safe-area-inset-top,0px)) 16px 12px;border-bottom:1px solid var(--border);background:rgba(0,0,0,.9);backdrop-filter:blur(20px);flex-shrink:0;}
+.create-header h2{font-size:18px;font-weight:700;flex:1;}
+.create-form{flex:1;overflow-y:auto;padding:20px 16px;display:flex;flex-direction:column;gap:14px;}
+.create-form label{font-size:13px;color:var(--text2);margin-bottom:-8px;}
+.form-row{display:flex;gap:12px;align-items:center;}
+.toggle-label{font-size:14px;flex:1;color:var(--text);}
+.toggle{position:relative;width:51px;height:31px;flex-shrink:0;}
+.toggle input{display:none;}
+.toggle .slider{position:absolute;inset:0;background:var(--card2);border-radius:16px;transition:.3s;cursor:pointer;}
+.toggle .slider::before{content:'';position:absolute;width:27px;height:27px;border-radius:50%;background:#fff;top:2px;left:2px;transition:.3s;box-shadow:0 1px 4px rgba(0,0,0,.3);}
+.toggle input:checked+.slider{background:var(--success);}
+.toggle input:checked+.slider::before{left:22px;}
+
+/* ── MODALS ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:30000;display:none;align-items:center;justify-content:center;padding:20px;animation:fadeIn .2s;}
+.modal-overlay.active{display:flex;}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+.modal-content{background:var(--card);border-radius:20px;width:100%;max-width:360px;overflow:hidden;animation:slideUp .22s ease;position:relative;max-height:88vh;overflow-y:auto;}
+@keyframes slideUp{from{transform:translateY(22px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+.modal-close{position:absolute;top:12px;right:12px;background:var(--card2);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;z-index:2;cursor:pointer;color:var(--text);border:none;touch-action:manipulation;}
+
+/* Profile */
+.profile-inner{position:relative;padding:24px;text-align:center;}
+.p-ava{width:80px;height:80px;border-radius:50%;background:var(--card2);margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:700;overflow:hidden;}
+.p-ava img{width:100%;height:100%;object-fit:cover;}
+.p-name{font-size:20px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:4px;flex-wrap:wrap;}
+.p-id{font-size:13px;color:var(--text2);margin-top:2px;}
+.p-bio{font-size:14px;color:var(--text2);margin-top:8px;line-height:1.4;user-select:text;-webkit-user-select:text;}
+.edit-fields{display:flex;flex-direction:column;gap:10px;margin-top:14px;text-align:left;}
+.edit-fields label{font-size:12px;color:var(--text2);}
+.edit-fields input,.edit-fields textarea{font-size:14px;padding:10px 12px;}
+.p-actions{display:flex;gap:8px;margin-top:14px;}
+.p-actions button{flex:1;padding:10px;font-size:14px;}
+.support-warn{margin-top:12px;padding:10px 14px;background:rgba(0,122,255,.1);border:1px solid rgba(0,122,255,.25);border-radius:10px;font-size:12px;color:var(--accent);line-height:1.4;text-align:left;}
+.scam-warn{margin-top:12px;padding:10px 14px;background:rgba(255,59,48,.1);border:1px solid rgba(255,59,48,.35);border-radius:10px;font-size:12px;color:var(--danger);line-height:1.4;text-align:left;}
+.v-badge{margin-top:10px;font-size:13px;color:var(--success);font-weight:600;}
+.v-btn{margin-top:10px;padding:9px 16px;font-size:13px;border-radius:10px;width:100%;background:var(--success);}
+.warn-badge{margin-top:10px;padding:8px 14px;background:rgba(255,204,0,.1);border:1px solid rgba(255,204,0,.3);border-radius:10px;font-size:12px;color:#ffd60a;text-align:left;}
+
+/* Group preview */
+.gp-inner{position:relative;padding:28px 24px;text-align:center;}
+.gp-ava{width:72px;height:72px;border-radius:50%;background:var(--card2);margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;overflow:hidden;}
+.gp-ava img{width:100%;height:100%;object-fit:cover;}
+.gp-name{font-size:18px;font-weight:700;}
+.gp-meta{font-size:13px;color:var(--text2);margin-top:3px;}
+.gp-bio{font-size:14px;color:var(--text2);margin-top:10px;line-height:1.4;}
+.gp-btn{margin-top:20px;width:100%;padding:14px;font-size:16px;font-weight:700;border-radius:14px;}
+.gp-joined{margin-top:16px;color:var(--success);font-size:14px;font-weight:600;}
+
+/* Group settings */
+.gs-inner{position:relative;padding:20px;}
+.gs-inner h3{font-size:16px;font-weight:700;text-align:center;margin-bottom:16px;padding-right:32px;}
+.gs-fields{display:flex;flex-direction:column;gap:12px;}
+.gs-fields label{font-size:12px;color:var(--text2);display:block;margin-bottom:-6px;}
+.gs-fields input,.gs-fields textarea{font-size:14px;padding:10px 12px;}
+.gs-err{color:var(--danger);font-size:12px;text-align:center;min-height:16px;margin-top:4px;}
+.gs-actions{display:flex;gap:8px;margin-top:14px;}
+.gs-actions button{flex:1;padding:11px;font-size:14px;}
+.gs-danger{margin-top:12px;border-top:1px solid var(--border);padding-top:12px;}
+.gs-danger button{width:100%;padding:10px;font-size:13px;background:rgba(255,59,48,.12);color:var(--danger);}
+
+/* Access key */
+.ak-inner{padding:24px;text-align:center;}
+.ak-inner h3{font-size:17px;font-weight:700;margin-bottom:6px;}
+.ak-inner p{font-size:13px;color:var(--text2);margin-bottom:14px;}
+.ak-inner input{margin-bottom:12px;}
+.ak-actions{display:flex;gap:8px;}
+.ak-actions button{flex:1;}
+
+/* Group members modal */
+.gm-inner{position:relative;padding:16px;}
+.gm-inner h3{font-size:16px;font-weight:700;margin-bottom:4px;padding-right:32px;}
+.gm-stats{font-size:12px;color:var(--text2);margin-bottom:12px;}
+.gm-list{display:flex;flex-direction:column;gap:2px;max-height:60vh;overflow-y:auto;}
+.gm-item{display:flex;align-items:center;gap:10px;padding:8px 4px;cursor:pointer;border-radius:10px;transition:background .1s;touch-action:manipulation;}
+.gm-item:active{background:var(--card2);}
+.gm-item .ava{width:38px;height:38px;font-size:14px;flex-shrink:0;}
+.gm-info{flex:1;min-width:0;}
+.gm-name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.gm-status{font-size:11px;color:var(--text2);}
+.online-dot{width:8px;height:8px;border-radius:50%;background:var(--success);display:inline-block;margin-right:3px;}
+
+/* Admin modal */
+.adm-inner{position:relative;padding:20px;}
+.adm-inner h3{font-size:16px;font-weight:700;text-align:center;margin-bottom:16px;padding-right:32px;}
+.adm-fields{display:flex;flex-direction:column;gap:10px;}
+.adm-fields label{font-size:12px;color:var(--text2);}
+.adm-fields input,.adm-fields textarea{font-size:14px;padding:10px 12px;}
+.adm-actions{display:flex;gap:8px;margin-top:14px;}
+.adm-actions button{flex:1;padding:10px;font-size:14px;}
+
+/* Search results */
+.search-results{padding:0 16px;overflow-y:auto;flex:1;}
+.sr-title{font-size:12px;color:var(--text2);font-weight:600;text-transform:uppercase;padding:8px 0;letter-spacing:.5px;}
+
+/* Image viewer */
+#imgViewer{position:fixed;inset:0;background:rgba(0,0,0,.96);z-index:40000;display:none;align-items:center;justify-content:center;cursor:zoom-out;}
+#imgViewer.on{display:flex;}
+#imgViewerImg{max-width:95%;max-height:90vh;border-radius:10px;object-fit:contain;}
+
+/* Spinner */
+.spinner{width:22px;height:22px;border:2.5px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;flex-shrink:0;}
+@keyframes spin{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- BAN OVERLAY -->
+<div id="banOverlay">
+  <div class="ban-icon">🚫</div>
+  <h2>Вы заблокированы</h2>
+  <p id="banReason">Причина: Нарушение правил сервиса.</p>
+  <a href="mailto:support@a-lt.su">Оспорить: support@a-lt.su</a>
+</div>
+
+<!-- AUTH -->
+<div id="authScreen" class="screen active">
+  <div class="auth-container">
+    <div class="auth-logo">
+      <h1>ALTMESSENGER</h1>
+      <p>Безопасный мессенджер нового поколения</p>
+    </div>
+    <div class="auth-tabs">
+      <div class="auth-tab active" onclick="switchAuthTab('login')">Вход</div>
+      <div class="auth-tab" onclick="switchAuthTab('register')">Регистрация</div>
+    </div>
+    <div id="loginForm" class="auth-form">
+      <input type="text" id="loginId" placeholder="@ID (имя пользователя)" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+      <input type="password" id="loginPass" placeholder="Пароль" autocomplete="current-password">
+      <div id="loginError" class="auth-error"></div>
+      <button onclick="doLogin()">Войти</button>
+    </div>
+    <div id="registerForm" class="auth-form" style="display:none;">
+      <input type="text" id="regId" placeholder="@ID (только a-z, 0-9)" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+      <div class="field-hint">Латинские буквы и цифры, 4–30 символов</div>
+      <input type="text" id="regNick" placeholder="Никнейм (любые символы)">
+      <input type="password" id="regPass" placeholder="Пароль (мин. 4 символа)" autocomplete="new-password">
+      <div id="regError" class="auth-error"></div>
+      <button onclick="doRegister()">Создать аккаунт</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="mainScreen" class="screen">
+  <div class="main-header">
+    <h2>ALTMESSENGER</h2>
+    <div class="header-actions">
+      <button onclick="openCreateGroup()" title="Создать группу">＋</button>
+    </div>
+  </div>
+  <div class="search-bar">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="globalSearch" placeholder="Поиск @ID группы или юзера..." autocomplete="off" oninput="onSearch(this.value)">
+    </div>
+  </div>
+  <div id="searchResults" class="search-results" style="display:none;"></div>
+  <div id="chatList" class="chat-list"></div>
+  <div class="tab-bar">
+    <button class="active" onclick="switchTab('chats',this)"><span class="tab-icon">💬</span>Чаты</button>
+    <button onclick="openSupportChat()"><span class="tab-icon">🛟</span>Поддержка</button>
+    <button onclick="switchTab('settings',this)"><span class="tab-icon">⚙️</span>Настройки</button>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+<div id="settingsScreen" class="screen">
+  <div class="main-header">
+    <h2>Настройки</h2>
+    <div class="header-actions">
+      <button onclick="showScreen('mainScreen')" style="font-size:14px;">✕</button>
+    </div>
+  </div>
+  <div class="settings-list">
+    <div class="settings-section-title">Аккаунт</div>
+    <div class="settings-item" onclick="openProfile(CU.id)">
+      <div class="si-icon" style="background:#007aff22;color:var(--accent);">👤</div>
+      <span class="si-label">Мой профиль</span><span class="si-arrow">›</span>
+    </div>
+    <div id="adminPanelBtn" class="settings-item" style="display:none;" onclick="openAdminPanel()">
+      <div class="si-icon" style="background:#ff3b3022;color:var(--danger);">🛡️</div>
+      <span class="si-label">Админ-панель</span><span class="si-arrow">›</span>
+    </div>
+    <div class="settings-section-title">Приложение</div>
+    <div class="settings-item" onclick="openSupportChat()">
+      <div class="si-icon" style="background:#30d15822;color:var(--success);">✉️</div>
+      <span class="si-label">Написать в поддержку</span><span class="si-arrow">›</span>
+    </div>
+    <div class="settings-section-title"></div>
+    <div class="settings-item" onclick="doLogout()">
+      <div class="si-icon" style="background:#ff3b3022;color:var(--danger);">🚪</div>
+      <span class="si-label" style="color:var(--danger);">Выйти из аккаунта</span><span class="si-arrow">›</span>
+    </div>
+  </div>
+</div>
+
+<!-- CHAT -->
+<div id="chatScreen" class="screen">
+  <div class="chat-header" id="chatHeaderEl">
+    <button class="back-btn" onclick="closeChat();event.stopPropagation();">‹</button>
+    <div class="ava sm" id="chatAva"></div>
+    <div class="chat-title">
+      <h3 id="chatName"></h3>
+      <p id="chatSub"></p>
+    </div>
+    <button class="gs-btn" id="gsBtnEl" style="display:none;" onclick="openGroupSettings();event.stopPropagation();">⚙️</button>
+  </div>
+  <div class="messages-area" id="msgsArea"></div>
+  <div class="edit-bar" id="editBar">
+    <span class="edit-bar-label">✏️ Редактирование</span>
+    <button class="edit-cancel" onclick="cancelEdit()">Отмена</button>
+  </div>
+  <div class="msg-input-bar">
+    <button class="attach-btn" onclick="document.getElementById('fileInput').click()">📎</button>
+    <input type="file" id="fileInput" accept="image/*,video/*" onchange="handleUpload(this)">
+    <div class="msg-input-wrap">
+      <input type="text" id="msgInput" placeholder="Сообщение..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg();}" autocomplete="off">
+      <div class="upload-bar" id="uploadBar">
+        <div class="spinner"></div>
+        <span id="uploadTxt">Загрузка...</span>
+      </div>
+    </div>
+    <button class="send-btn" onclick="sendMsg()">➤</button>
+  </div>
+</div>
+
+<!-- ADMIN -->
+<div id="adminScreen" class="screen">
+  <div class="admin-header">
+    <button class="back-btn" onclick="showScreen('mainScreen')">‹</button>
+    <h2 style="font-size:18px;font-weight:700;flex:1;">Админ-панель</h2>
+    <span class="admin-badge">ADMIN</span>
+  </div>
+  <!-- Admin action tabs -->
+  <div style="display:flex;gap:4px;padding:8px 12px;border-bottom:1px solid var(--border);flex-shrink:0;">
+    <button style="flex:1;padding:8px;font-size:12px;border-radius:10px;" onclick="showAdminTab('tickets',this)" id="admTab0">Тикеты</button>
+    <button style="flex:1;padding:8px;font-size:12px;border-radius:10px;background:var(--card2);color:var(--text);" onclick="showAdminTab('tools',this)" id="admTab1">Инструменты</button>
+  </div>
+  <div id="adminTickets" style="flex:1;overflow-y:auto;">
+    <div class="ticket-list" id="ticketList"></div>
+  </div>
+  <div id="adminTools" style="display:none;flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;">
+    <div class="settings-item" style="background:var(--card);border-radius:14px;" onclick="openAdminAction('ban')">
+      <div class="si-icon" style="background:#ff3b3022;color:var(--danger);">🔨</div>
+      <span class="si-label">Заблокировать юзера</span><span class="si-arrow">›</span>
+    </div>
+    <div class="settings-item" style="background:var(--card);border-radius:14px;" onclick="openAdminAction('unban')">
+      <div class="si-icon" style="background:#30d15822;color:var(--success);">✅</div>
+      <span class="si-label">Разблокировать юзера</span><span class="si-arrow">›</span>
+    </div>
+    <div class="settings-item" style="background:var(--card);border-radius:14px;" onclick="openAdminAction('warn')">
+      <div class="si-icon" style="background:#ffd60a22;color:#ffd60a;">⚠️</div>
+      <span class="si-label">Выдать варн</span><span class="si-arrow">›</span>
+    </div>
+    <div class="settings-item" style="background:var(--card);border-radius:14px;" onclick="openAdminAction('scam')">
+      <div class="si-icon" style="background:#ff3b3022;color:var(--danger);">🚨</div>
+      <span class="si-label">Пометить SCAM</span><span class="si-arrow">›</span>
+    </div>
+    <div class="settings-item" style="background:var(--card);border-radius:14px;" onclick="openAdminAction('broadcast')">
+      <div class="si-icon" style="background:#007aff22;color:var(--accent);">📢</div>
+      <span class="si-label">Рассылка всем</span><span class="si-arrow">›</span>
+    </div>
+  </div>
+</div>
+
+<!-- CREATE GROUP -->
+<div id="createGroupScreen" class="screen">
+  <div class="create-header">
+    <button class="back-btn" onclick="showScreen('mainScreen')">‹</button>
+    <h2>Создать группу</h2>
+  </div>
+  <div class="create-form">
+    <label>@ID группы (только a-z, 0-9)</label>
+    <input type="text" id="gIdIn" placeholder="mygroup123" autocapitalize="off" autocorrect="off">
+    <label>Название группы</label>
+    <input type="text" id="gNameIn" placeholder="Моя группа">
+    <label>Описание (необязательно)</label>
+    <textarea id="gBioIn" placeholder="О чём эта группа..."></textarea>
+    <label>URL аватара (необязательно)</label>
+    <input type="text" id="gAvaIn" placeholder="https://...">
+    <div class="form-row">
+      <label class="toggle-label">Приватная группа</label>
+      <label class="toggle"><input type="checkbox" id="gPrivToggle"><span class="slider"></span></label>
+    </div>
+    <div id="gKeyRow" style="display:none;">
+      <label style="font-size:13px;color:var(--text2);display:block;margin-bottom:6px;">Ключ доступа</label>
+      <input type="text" id="gKeyIn" placeholder="Секретный ключ">
+    </div>
+    <div id="createGErr" class="auth-error"></div>
+    <button onclick="createGroup()">Создать группу</button>
+  </div>
+</div>
+
+<!-- PROFILE MODAL -->
+<div class="modal-overlay" id="profileModal">
+  <div class="modal-content">
+    <div class="profile-inner" id="profileInner">
+      <div style="padding:40px;text-align:center;"><div class="spinner" style="margin:0 auto;"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- GROUP PREVIEW -->
+<div class="modal-overlay" id="gpModal">
+  <div class="modal-content"><div class="gp-inner" id="gpInner"></div></div>
+</div>
+
+<!-- GROUP SETTINGS -->
+<div class="modal-overlay" id="gsModal">
+  <div class="modal-content"><div class="gs-inner" id="gsInner"></div></div>
+</div>
+
+<!-- ACCESS KEY -->
+<div class="modal-overlay" id="akModal">
+  <div class="modal-content"><div class="ak-inner" id="akInner"></div></div>
+</div>
+
+<!-- GROUP MEMBERS -->
+<div class="modal-overlay" id="gmModal">
+  <div class="modal-content"><div class="gm-inner" id="gmInner"></div></div>
+</div>
+
+<!-- ADMIN ACTION MODAL -->
+<div class="modal-overlay" id="admModal">
+  <div class="modal-content"><div class="adm-inner" id="admInner"></div></div>
+</div>
+
+<!-- IMAGE VIEWER -->
+<div id="imgViewer" onclick="closeImgViewer()">
+  <img id="imgViewerImg" src="" alt="">
+</div>
+
+<!-- CONTEXT MENU -->
+<div id="ctxOverlay" style="display:none;" onclick="closeCtx()"></div>
+<div id="ctxMenu" class="ctx-menu" style="display:none;"></div>
+
+<!-- REACTION PICKER -->
+<div id="reactionPicker" class="reaction-picker" style="display:none;"></div>
+<div id="rpOverlay" style="position:fixed;inset:0;z-index:50000;display:none;" onclick="closeReactionPicker()"></div>
+
+</div>
+
+<script>
+// ═══════════ FIREBASE ═══════════
+firebase.initializeApp({
+  apiKey:"AIzaSyAPlDFdW52RI2c2gLb9aAgmPNjT4pOLQu4",
+  authDomain:"ahahk-1ae42.firebaseapp.com",
+  databaseURL:"https://ahahk-1ae42-default-rtdb.firebaseio.com",
+  projectId:"ahahk-1ae42",
+  storageBucket:"ahahk-1ae42.firebasestorage.app",
+  messagingSenderId:"881408677847",
+  appId:"1:881408677847:web:7b1670945e56158ed61d92"
+});
+const db = firebase.database();
+
+// ═══════════ CACHE ═══════════
+const UC={};
+async function fetchUser(id){
+  if(!id)return null;
+  if(UC[id]&&Date.now()-UC[id]._t<30000)return UC[id];
+  try{const s=await db.ref('users/'+id).once('value');if(s.exists()){const u=s.val();u._t=Date.now();UC[id]=u;return u;}}catch(e){}
+  return null;
+}
+function dropCache(id){delete UC[id];}
+
+// ═══════════ STATE ═══════════
+let CU=null, CC=null;
+let offDm=null,offJoined=null,offSup=null,offChat=null,offGLive=null,offAdmin=null;
+// Locally hidden message keys (deleted for self)
+let localDeleted={};
+// Edit state
+let editMsgKey=null;
+// Online presence
+let presenceRef=null;
+
+// ═══════════ HELPERS ═══════════
+function esc(s){if(s==null)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function escA(s){return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function val(id){return document.getElementById(id)?.value||'';}
+function gi(id){return document.getElementById(id);}
+function inits(n){if(!n)return'?';const p=n.trim().split(/\s+/);return p.length>=2?(p[0][0]+p[1][0]).toUpperCase():n.substring(0,2).toUpperCase();}
+function fmtT(ts){
+  if(!ts)return'';
+  const d=new Date(ts),n=new Date(),pad=x=>String(x).padStart(2,'0');
+  const t=pad(d.getHours())+':'+pad(d.getMinutes());
+  if(d.toDateString()===n.toDateString())return t;
+  const y=new Date(n);y.setDate(y.getDate()-1);
+  if(d.toDateString()===y.toDateString())return'Вчера '+t;
+  return pad(d.getDate())+'.'+pad(d.getMonth()+1)+' '+t;
+}
+function fmtLastSeen(ts){
+  if(!ts)return'';
+  const diff=Date.now()-ts;
+  if(diff<60000)return'был(а) только что';
+  if(diff<3600000)return'был(а) '+Math.floor(diff/60000)+' мин. назад';
+  if(diff<86400000)return'был(а) '+fmtT(ts);
+  return'был(а) '+fmtT(ts);
+}
+function save(){localStorage.setItem('cu',JSON.stringify(CU));}
+function scrollBot(){const a=gi('msgsArea');requestAnimationFrame(()=>{a.scrollTop=a.scrollHeight;});}
+function isAdmin(){return CU&&(CU.id==='support'||CU.role==='admin');}
+
+// ═══════════ PRESENCE ═══════════
+function setupPresence(){
+  if(!CU)return;
+  presenceRef=db.ref('users/'+CU.id+'/lastSeen');
+  const connRef=db.ref('.info/connected');
+  connRef.on('value',snap=>{
+    if(snap.val()===true){
+      presenceRef.onDisconnect().set(firebase.database.ServerValue.TIMESTAMP);
+      presenceRef.set('online');
+    }
+  });
+}
+function teardownPresence(){
+  if(presenceRef){presenceRef.set(firebase.database.ServerValue.TIMESTAMP);presenceRef=null;}
+  db.ref('.info/connected').off();
+}
+
+// ═══════════ AUTH ═══════════
+function switchAuthTab(tab){
+  document.querySelectorAll('.auth-tab').forEach((t,i)=>t.classList.toggle('active',tab==='login'?i===0:i===1));
+  gi('loginForm').style.display=tab==='login'?'flex':'none';
+  gi('registerForm').style.display=tab==='register'?'flex':'none';
+}
+
+async function doLogin(){
+  const id=val('loginId').toLowerCase().trim(),pw=val('loginPass');
+  const err=gi('loginError');err.textContent='';
+  if(!id||!pw){err.textContent='Заполните все поля';return;}
+  if(id==='support'&&pw==='admin123'){
+    const a={id:'support',nickname:'Поддержка ALTMESSENGER',avatar:'',bio:'Официальная поддержка ALTMESSENGER',password:pw,role:'admin',verified:true,created:Date.now()};
+    await db.ref('users/support').set(a);CU=a;save();initApp();return;
+  }
+  try{
+    const s=await db.ref('users/'+id).once('value');
+    if(!s.exists()){err.textContent='Пользователь не найден';return;}
+    const d=s.val();
+    if(d.password!==pw){err.textContent='Неверный пароль';return;}
+    // Check ban
+    if(d.isBanned){
+      showBanScreen(d.banReason||'Нарушение правил сервиса');return;
+    }
+    CU=d;save();
+    // Check for pending warns
+    checkPendingWarns();
+    initApp();
+  }catch(e){err.textContent='Ошибка подключения';}
+}
+
+async function doRegister(){
+  const id=val('regId').toLowerCase().trim(),nick=val('regNick').trim(),pw=val('regPass');
+  const err=gi('regError');err.textContent='';
+  if(!id||!nick||!pw){err.textContent='Заполните все поля';return;}
+  if(!/^[a-z0-9]{4,30}$/.test(id)){err.textContent='ID: только a-z, 0-9 (4–30 символов)';return;}
+  if(pw.length<4){err.textContent='Пароль минимум 4 символа';return;}
+  try{
+    if((await db.ref('users/'+id).once('value')).exists()){err.textContent='Этот @ID уже занят';return;}
+    const u={id,nickname:nick,avatar:'',bio:'',password:pw,role:'user',verified:false,created:Date.now()};
+    await db.ref('users/'+id).set(u);CU=u;save();initApp();
+  }catch(e){err.textContent='Ошибка: '+e.message;}
+}
+
+function doLogout(){
+  teardownPresence();offAll();CU=null;CC=null;
+  localStorage.removeItem('cu');showScreen('authScreen');
+}
+
+function showBanScreen(reason){
+  gi('banReason').textContent='Причина: '+reason;
+  gi('banOverlay').classList.add('show');
+}
+
+async function checkPendingWarns(){
+  if(!CU)return;
+  try{
+    const ws=await db.ref('users/'+CU.id+'/pendingWarns').once('value');
+    if(!ws.exists())return;
+    const warns=ws.val();
+    const keys=Object.keys(warns);
+    for(const k of keys){
+      const w=warns[k];
+      // Send system message from AltMessenger
+      const sysPath='messages/dm_altmessenger_'+CU.id;
+      await db.ref(sysPath).push({
+        senderId:'altmessenger',senderName:'AltMessenger',senderVerified:true,isSystem:true,
+        text:'⚠️ Предупреждение: '+w.reason,
+        timestamp:firebase.database.ServerValue.TIMESTAMP
+      });
+      await db.ref('dms/altmessenger_'+CU.id).set(true);
+      // Mark delivered
+      await db.ref('users/'+CU.id+'/pendingWarns/'+k).remove();
+    }
+  }catch(e){}
+}
+
+function offAll(){
+  if(offDm){db.ref('dms').off('value',offDm);offDm=null;}
+  if(offJoined){offJoined();offJoined=null;}
+  if(offSup){offSup();offSup=null;}
+  if(offChat){offChat();offChat=null;}
+  if(offGLive){offGLive();offGLive=null;}
+  if(offAdmin){db.ref('support_chats').off('value',offAdmin);offAdmin=null;}
+}
+
+// ═══════════ SCREEN ═══════════
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));gi(id).classList.add('active');}
+function switchTab(tab,btn){
+  showScreen(tab==='chats'?'mainScreen':'settingsScreen');
+  document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+}
+
+// ═══════════ INIT ═══════════
+function initApp(){
+  showScreen('mainScreen');
+  gi('adminPanelBtn').style.display=isAdmin()?'flex':'none';
+  setupPresence();
+  loadChatList();
+}
+
+// ═══════════ CHAT LIST ═══════════
+let chatItems={},renderTmr=null;
+
+function loadChatList(){
+  chatItems={};
+  // DMs
+  offDm=db.ref('dms').on('value',snap=>{
+    Object.keys(chatItems).forEach(k=>{if(k.startsWith('dm_'))delete chatItems[k];});
+    const dms=snap.val()||{};
+    Object.keys(dms).forEach(dmId=>{
+      const pts=dmId.split('_');
+      if(!pts.includes(CU.id))return;
+      const other=pts[0]===CU.id?pts[1]:pts[0];
+      if(other===CU.id)return;
+      chatItems['dm_'+dmId]={id:dmId,type:'dm',otherId:other};
+    });
+    schedRender();
+  });
+  // Groups
+  const jRef=db.ref('users/'+CU.id+'/joined_groups');
+  const jCb=jRef.on('value',snap=>{
+    Object.keys(chatItems).forEach(k=>{if(k.startsWith('group_'))delete chatItems[k];});
+    const gs=snap.val()||{};
+    Object.keys(gs).forEach(gid=>{chatItems['group_'+gid]={id:gid,type:'group'};});
+    schedRender();
+  });
+  offJoined=()=>jRef.off('value',jCb);
+  // Support
+  if(CU.id!=='support'){
+    const scId=[CU.id,'support'].sort().join('_');
+    const scRef=db.ref('support_chats/'+scId);
+    const scCb=scRef.on('value',snap=>{
+      if(snap.exists())chatItems['sup_'+scId]={id:scId,type:'support',otherId:'support'};
+      schedRender();
+    });
+    offSup=()=>scRef.off('value',scCb);
+  }
+}
+
+function schedRender(){clearTimeout(renderTmr);renderTmr=setTimeout(renderChatList,120);}
+
+async function renderChatList(){
+  const el=gi('chatList');
+  const keys=Object.keys(chatItems);
+  if(!keys.length){
+    el.innerHTML='<div class="empty-state"><div class="em">💬</div><p>Нет чатов.<br>Найдите группу через поиск<br>или напишите в поддержку.</p></div>';
+    return;
+  }
+  const items=[];
+  for(const key of keys){
+    const it=chatItems[key];
+    const cd={key,...it,name:'',ava:'',lastMsg:'',lastTime:0,verified:false};
+    try{
+      if(it.type==='dm'){
+        const u=await fetchUser(it.otherId);
+        if(u){cd.name=u.nickname||u.id;cd.ava=u.avatar||'';cd.verified=it.otherId==='support'||it.otherId==='altmessenger'||u.verified===true;}
+        else cd.name='@'+it.otherId;
+        const m=await db.ref('messages/dm_'+it.id).orderByKey().limitToLast(1).once('value');
+        m.forEach(x=>{const v=x.val();cd.lastMsg=v.text||'📎 Медиа';cd.lastTime=v.timestamp||0;});
+      }else if(it.type==='group'){
+        const gs=await db.ref('groups/'+it.id).once('value');const g=gs.val();
+        if(g){cd.name=g.name||it.id;cd.ava=g.avatar||'';}else cd.name='@'+it.id;
+        const m=await db.ref('messages/group_'+it.id).orderByKey().limitToLast(1).once('value');
+        m.forEach(x=>{const v=x.val();cd.lastMsg=v.text||'📎 Медиа';cd.lastTime=v.timestamp||0;});
+      }else if(it.type==='support'){
+        cd.name=CU.id==='support'?'@'+it.otherId:'Поддержка ALTMESSENGER';cd.verified=true;
+        const m=await db.ref('messages/support_'+it.id).orderByKey().limitToLast(1).once('value');
+        m.forEach(x=>{const v=x.val();cd.lastMsg=v.text||'📎 Медиа';cd.lastTime=v.timestamp||0;});
+      }
+    }catch(e){}
+    items.push(cd);
+  }
+  items.sort((a,b)=>b.lastTime-a.lastTime);
+  el.innerHTML=items.map(it=>{
+    const avHtml=it.ava?`<img src="${esc(it.ava)}" alt="">`:inits(it.name);
+    const vm=it.verified?' <span class="verified">✓</span>':'';
+    const ts=it.lastTime?fmtT(it.lastTime):'';
+    let avClick='';
+    if(it.type==='group') avClick=`event.stopPropagation();openGroupPreview('${esc(it.id)}')`;
+    else if(it.otherId) avClick=`event.stopPropagation();openProfile('${esc(it.otherId)}')`;
+    return `<div class="chat-item" onclick="openFromList('${esc(it.type)}','${esc(it.id)}','${esc(it.otherId||'')}')">
+      <div class="ava" onclick="${avClick}">${avHtml}</div>
+      <div class="chat-info">
+        <div class="chat-name-row">${esc(it.name)}${vm}</div>
+        <div class="chat-preview">${esc(it.lastMsg)}</div>
+      </div>
+      <span class="chat-time">${ts}</span></div>`;
+  }).join('');
+}
+
+function openFromList(type,id,otherId){
+  if(type==='dm')openDmChat(otherId||id);
+  else if(type==='group')openGroupChat(id);
+  else openSupportDirect(id);
+}
+
+// ═══════════ OPEN CHATS ═══════════
+async function openDmChat(otherId){
+  const dmId=[CU.id,otherId].sort().join('_');
+  let u=await fetchUser(otherId);
+  if(!u)u={id:otherId,nickname:otherId,avatar:'',bio:''};
+  // Get online status
+  let sub='';
+  if(otherId==='support'||otherId==='altmessenger'){
+    sub='Официальный аккаунт';
+  } else {
+    sub=getStatusSub(u);
+  }
+  CC={id:dmId,type:'dm',name:u.nickname||otherId,ava:u.avatar||'',
+      msgPath:'messages/dm_'+dmId,otherId,
+      verified:otherId==='support'||otherId==='altmessenger'||u.verified===true,
+      sub};
+  setupChatUI();showScreen('chatScreen');listenMsgs(CC.msgPath);
+  db.ref('dms/'+dmId).set(true);
+  // Live presence for DM
+  listenPresence(otherId);
+}
+
+function getStatusSub(u){
+  if(!u)return'Пользователь';
+  if(u.lastSeen==='online')return'В сети';
+  if(u.lastSeen)return fmtLastSeen(u.lastSeen);
+  return u.bio?u.bio.substring(0,60):'Пользователь';
+}
+
+let offPresence=null;
+function listenPresence(uid){
+  if(offPresence){offPresence();offPresence=null;}
+  if(!uid||uid==='support'||uid==='altmessenger')return;
+  const ref=db.ref('users/'+uid+'/lastSeen');
+  const cb=ref.on('value',snap=>{
+    if(!CC||CC.otherId!==uid)return;
+    const v=snap.val();
+    let sub='';
+    if(v==='online')sub='В сети';
+    else if(v)sub=fmtLastSeen(v);
+    else sub='Пользователь';
+    CC.sub=sub;
+    const subEl=gi('chatSub');
+    if(subEl)subEl.textContent=sub;
+  });
+  offPresence=()=>ref.off('value',cb);
+}
+
+async function openGroupChat(groupId){
+  let g={id:groupId,name:groupId,avatar:'',bio:'',owner:'',privacy:'public'};
+  try{const s=await db.ref('groups/'+groupId).once('value');if(s.exists())g={...g,...s.val()};}catch(e){}
+  // Count online members
+  const sub=await getGroupSub(groupId);
+  CC={id:groupId,type:'group',name:g.name,ava:g.avatar||'',
+      msgPath:'messages/group_'+groupId,groupData:g,verified:false,sub};
+  setupChatUI();showScreen('chatScreen');listenMsgs(CC.msgPath);
+  if(offGLive){offGLive();offGLive=null;}
+  const gRef=db.ref('groups/'+groupId);
+  const gCb=gRef.on('value',async snap=>{
+    if(!snap.exists()||!CC||CC.id!==groupId)return;
+    const gd=snap.val();
+    CC.name=gd.name;CC.ava=gd.avatar||'';CC.groupData=gd;
+    const ne=gi('chatName'),ae=gi('chatAva');
+    if(ne)ne.innerHTML=esc(gd.name);
+    if(ae)ae.innerHTML=gd.avatar?`<img src="${esc(gd.avatar)}" alt="">`:inits(gd.name);
+    gi('gsBtnEl').style.display=(gd.owner===CU.id)?'flex':'none';
+    // Update sub
+    const s=await getGroupSub(groupId);
+    CC.sub=s;
+    const subEl=gi('chatSub');if(subEl)subEl.textContent=s;
+  });
+  offGLive=()=>gRef.off('value',gCb);
+  // Post join message
+  await postJoinMessage(groupId);
+}
+
+async function getGroupSub(groupId){
+  try{
+    const ms=await db.ref('groups/'+groupId+'/members').once('value');
+    const members=ms.val()||{};
+    const keys=Object.keys(members);
+    let online=0;
+    for(const uid of keys){
+      const ls=await db.ref('users/'+uid+'/lastSeen').once('value');
+      if(ls.val()==='online')online++;
+    }
+    return `Участников: ${keys.length}, В сети: ${online}`;
+  }catch(e){return'Группа';}
+}
+
+async function postJoinMessage(groupId){
+  // Check if already posted recently (within 5 min)
+  const key='joinMsg_'+groupId;
+  const last=sessionStorage.getItem(key);
+  if(last&&Date.now()-parseInt(last)<300000)return;
+  sessionStorage.setItem(key,Date.now());
+  try{
+    await db.ref('messages/group_'+groupId).push({
+      senderId:'system',senderName:'System',senderVerified:false,isSystem:true,
+      text:`${CU.nickname||CU.id} зашёл(а) в группу`,
+      timestamp:firebase.database.ServerValue.TIMESTAMP
+    });
+  }catch(e){}
+}
+
+function openSupportChat(){
+  if(CU.id==='support'){openAdminPanel();return;}
+  const scId=[CU.id,'support'].sort().join('_');
+  CC={id:scId,type:'support',name:'Поддержка ALTMESSENGER',ava:'',
+      msgPath:'messages/support_'+scId,otherId:'support',
+      verified:true,sub:'Официальный аккаунт'};
+  setupChatUI();showScreen('chatScreen');listenMsgs(CC.msgPath);
+  db.ref('support_chats/'+scId).set({user:CU.id,created:Date.now()});
+}
+
+async function openSupportDirect(chatId){
+  const pts=chatId.split('_');
+  const otherId=pts[0]===CU.id?pts[1]:pts[0];
+  const isAdm=CU.id==='support';
+  let sub='Официальный аккаунт';
+  if(isAdm){const u=await fetchUser(otherId);sub=getStatusSub(u);}
+  CC={id:chatId,type:'support',name:isAdm?'@'+otherId:'Поддержка ALTMESSENGER',ava:'',
+      msgPath:'messages/support_'+chatId,otherId,verified:true,sub};
+  setupChatUI();showScreen('chatScreen');listenMsgs(CC.msgPath);
+}
+
+// ═══════════ CHAT HEADER CLICK ═══════════
+gi('chatHeaderEl').addEventListener('click',function(e){
+  if(!CC)return;
+  if(CC.type==='group')openGroupMembers(CC.id);
+  else if(CC.otherId&&CC.otherId!=='support'&&CC.otherId!=='altmessenger')openProfile(CC.otherId);
+});
+
+// ═══════════ GROUP MEMBERS ═══════════
+async function openGroupMembers(groupId){
+  gi('gmInner').innerHTML='<button class="modal-close" onclick="closeModal(\'gmModal\')">✕</button><h3>Участники</h3><div style="padding:20px;text-align:center;"><div class="spinner" style="margin:0 auto;"></div></div>';
+  gi('gmModal').classList.add('active');
+  try{
+    const ms=await db.ref('groups/'+groupId+'/members').once('value');
+    const members=ms.val()||{};
+    const keys=Object.keys(members);
+    let html='';
+    let onlineCount=0;
+    const memberData=[];
+    for(const uid of keys){
+      const u=await fetchUser(uid)||{id:uid,nickname:uid,avatar:'',bio:''};
+      const ls=u.lastSeen;
+      const isOnline=ls==='online';
+      if(isOnline)onlineCount++;
+      memberData.push({u,isOnline,ls});
+    }
+    // Sort: online first
+    memberData.sort((a,b)=>(b.isOnline?1:0)-(a.isOnline?1:0));
+    html=memberData.map(({u,isOnline,ls})=>{
+      const avHtml=u.avatar?`<img src="${esc(u.avatar)}" alt="">`:inits(u.nickname||u.id);
+      const vm=(u.verified||u.id==='support')?' <span class="verified" style="font-size:11px;">✓</span>':'';
+      const statusTxt=isOnline?'<span class="online-dot"></span>В сети':(ls?fmtLastSeen(ls):'');
+      return `<div class="gm-item" onclick="closeModal('gmModal');openProfile('${esc(u.id)}')">
+        <div class="ava sm">${avHtml}</div>
+        <div class="gm-info">
+          <div class="gm-name">${esc(u.nickname||u.id)}${vm}</div>
+          <div class="gm-status">${statusTxt}</div>
+        </div></div>`;
+    }).join('');
+    gi('gmInner').innerHTML=`
+      <button class="modal-close" onclick="closeModal('gmModal')">✕</button>
+      <h3>Участники группы</h3>
+      <div class="gm-stats">Участников: ${keys.length}, В сети: ${onlineCount}</div>
+      <div class="gm-list">${html||'<p style="color:var(--text2);text-align:center;padding:20px;">Нет участников</p>'}</div>`;
+  }catch(e){gi('gmInner').innerHTML='<button class="modal-close" onclick="closeModal(\'gmModal\')">✕</button><p style="padding:24px;text-align:center;color:var(--text2);">Ошибка загрузки</p>';}
+}
+
+// ═══════════ CHAT UI ═══════════
+function setupChatUI(){
+  if(offPresence){offPresence();offPresence=null;}
+  const avaEl=gi('chatAva'),nameEl=gi('chatName'),subEl=gi('chatSub'),sbtn=gi('gsBtnEl');
+  avaEl.innerHTML=CC.ava?`<img src="${esc(CC.ava)}" alt="">`:inits(CC.name);
+  if(CC.type==='group')avaEl.onclick=(e)=>{e.stopPropagation();openGroupPreview(CC.id);};
+  else if(CC.otherId)avaEl.onclick=(e)=>{e.stopPropagation();openProfile(CC.otherId);};
+  else avaEl.onclick=null;
+  nameEl.innerHTML=esc(CC.name)+(CC.verified?' <span class="verified">✓</span>':'');
+  subEl.textContent=CC.sub||'';
+  sbtn.style.display=(CC.type==='group'&&CC.groupData&&CC.groupData.owner===CU.id)?'flex':'none';
+  gi('msgsArea').innerHTML='';
+  gi('msgInput').value='';
+  cancelEdit();
+  localDeleted={};
+}
+
+// ═══════════ MESSAGES ═══════════
+function listenMsgs(path){
+  if(offChat){offChat();offChat=null;}
+  const area=gi('msgsArea');area.innerHTML='';
+  let init=true,buf=[];
+  const ref=db.ref(path).orderByChild('timestamp').limitToLast(120);
+  const cb=ref.on('child_added',snap=>{
+    const m={...snap.val(),_key:snap.key};
+    if(init)buf.push(m);else{if(!localDeleted[snap.key])appendMsg(m,true);}
+  });
+  // Listen for changes (edits, reactions)
+  ref.on('child_changed',snap=>{
+    const m={...snap.val(),_key:snap.key};
+    const existing=gi('msg_'+snap.key);
+    if(existing&&!localDeleted[snap.key]){
+      // Re-render this message
+      const isSent=m.senderId===CU.id;
+      const area2=gi('msgsArea');
+      const newDiv=document.createElement('div');
+      renderMsgInto(newDiv,m,isSent);
+      area2.replaceChild(newDiv,existing);
+    }
+  });
+  ref.on('child_removed',snap=>{
+    const existing=gi('msg_'+snap.key);
+    if(existing)existing.remove();
+  });
+  setTimeout(()=>{
+    init=false;buf.sort((a,b)=>(a.timestamp||0)-(b.timestamp||0));
+    buf.forEach(m=>{if(!localDeleted[m._key])appendMsg(m,false);});scrollBot();buf=[];
+  },320);
+  offChat=()=>{ref.off('child_added',cb);ref.off('child_changed');ref.off('child_removed');};
+}
+
+function renderMsgInto(div,msg,isSent){
+  div.className='msg '+(isSent?'sent':'recv');
+  div.id='msg_'+msg._key;
+  if(msg.isSystem){div.className='msg-system';div.textContent=msg.text||'';return;}
+  const isVerified=msg.senderVerified===true||msg.senderId==='support'||msg.senderId==='altmessenger';
+  let senderHtml='';
+  if(!isSent&&CC&&CC.type==='group'){
+    const vm=isVerified?' <span class="verified">✓</span>':'';
+    senderHtml=`<div class="msg-sender" onclick="openProfile('${esc(msg.senderId)}')">${esc(msg.senderName||msg.senderId)}${vm}</div>`;
+  }
+  const txt=msg.text||'';
+  const media=buildMedia(txt);
+  let content='';
+  if(media){
+    content=media;
+    const clean=txt.replace(/https?:\/\/\S+\.(jpg|jpeg|png|gif|webp|mp4|webm)(\?\S*)?/gi,'').trim();
+    if(clean)content+=`<div class="msg-text">${esc(clean)}</div>`;
+  }else{
+    content=`<div class="msg-text">${esc(txt)}</div>`;
+  }
+  const vm2=isVerified&&!isSent?' <span class="verified">✓</span>':'';
+  const editedMark=msg.edited?`<span class="msg-edited">ред.</span>`:'';
+  // Reactions
+  const reactHtml=buildReactionsHtml(msg._key,msg.reactions);
+  div.innerHTML=senderHtml+content+`<div class="msg-time">${fmtT(msg.timestamp)}${editedMark}${vm2}</div>${reactHtml}`;
+  // Long press / right click for context menu
+  div.addEventListener('contextmenu',(e)=>{e.preventDefault();showCtxMenu(e,msg,isSent);});
+  let pressTimer;
+  div.addEventListener('touchstart',(e)=>{pressTimer=setTimeout(()=>showCtxMenu(e.changedTouches[0],msg,isSent),500);},{passive:true});
+  div.addEventListener('touchend',()=>clearTimeout(pressTimer));
+  div.addEventListener('touchmove',()=>clearTimeout(pressTimer));
+}
+
+function appendMsg(msg,doScroll){
+  const area=gi('msgsArea');
+  const isSent=msg.senderId===CU.id;
+  if(msg.isSystem){
+    const div=document.createElement('div');
+    div.className='msg-system';div.id='msg_'+msg._key;div.textContent=msg.text||'';
+    area.appendChild(div);if(doScroll)scrollBot();return;
+  }
+  const div=document.createElement('div');
+  renderMsgInto(div,msg,isSent);
+  area.appendChild(div);
+  if(doScroll)scrollBot();
+}
+
+function buildMedia(text){
+  const imgRe=/(https?:\/\/\S+\.(jpg|jpeg|png|gif|webp)(\?\S*)?)/gi;
+  const vidRe=/(https?:\/\/\S+\.(mp4|webm)(\?\S*)?)/gi;
+  let html='',m;
+  while((m=imgRe.exec(text))!==null)
+    html+=`<div class="msg-media"><img src="${esc(m[1])}" loading="lazy" onclick="openImgViewer('${esc(m[1])}')" alt=""></div>`;
+  while((m=vidRe.exec(text))!==null)
+    html+=`<div class="msg-media"><video src="${esc(m[1])}" controls preload="metadata"></video></div>`;
+  return html;
+}
+
+function buildReactionsHtml(msgKey,reactions){
+  if(!reactions||!Object.keys(reactions).length)return`<div class="msg-reactions" id="react_${esc(msgKey)}"><button class="reaction-add" onclick="openReactionPicker(event,'${esc(msgKey)}')">+</button></div>`;
+  const counts={};
+  Object.entries(reactions).forEach(([uid,emoji])=>{
+    if(!counts[emoji])counts[emoji]={count:0,mine:false};
+    counts[emoji].count++;
+    if(uid===CU.id)counts[emoji].mine=true;
+  });
+  let pills=Object.entries(counts).map(([emoji,d])=>
+    `<button class="reaction-pill${d.mine?' mine':''}" onclick="toggleReaction(event,'${esc(msgKey)}','${emoji}')">${emoji}<span>${d.count}</span></button>`
+  ).join('');
+  return`<div class="msg-reactions" id="react_${esc(msgKey)}">${pills}<button class="reaction-add" onclick="openReactionPicker(event,'${esc(msgKey)}')">+</button></div>`;
+}
+
+// ═══════════ CONTEXT MENU ═══════════
+function showCtxMenu(e,msg,isSent){
+  closeCtx();
+  const x=e.clientX||e.pageX||200;
+  const y=e.clientY||e.pageY||200;
+  const items=[];
+  // Copy
+  items.push({icon:'📋',label:'Копировать',fn:`copyMsg(${JSON.stringify(msg.text||'')})`});
+  // Reactions
+  items.push({icon:'😀',label:'Реакция',fn:`openReactionPickerAt(${x},${y},'${msg._key}')`});
+  if(isSent){
+    // Edit (only text messages)
+    if(!buildMedia(msg.text||''))
+      items.push({icon:'✏️',label:'Редактировать',fn:`startEdit('${esc(msg._key)}',${JSON.stringify(msg.text||'')})`});
+    // Delete for me
+    items.push({icon:'🗑',label:'Удалить у себя',danger:false,fn:`deleteForMe('${esc(msg._key)}')`});
+    // Delete for all
+    items.push({icon:'🗑',label:'Удалить у всех',danger:true,fn:`deleteForAll('${esc(msg._key)}')`});
+  } else {
+    items.push({icon:'🗑',label:'Удалить у себя',danger:false,fn:`deleteForMe('${esc(msg._key)}')`});
+  }
+  // Clear chat
+  items.push({icon:'🧹',label:'Очистить чат у себя',danger:true,fn:'confirmClearChat()'});
+  if(isSent||isAdmin()){
+    items.push({icon:'🧹',label:'Очистить у всех',danger:true,fn:'confirmClearChatAll()'});
+  }
+
+  const menu=gi('ctxMenu');
+  menu.innerHTML=items.map(it=>`<div class="ctx-item${it.danger?' danger':''}" onclick="closeCtx();${it.fn}">${it.icon} ${it.label}</div>`).join('');
+  // Position
+  const mw=190,mh=items.length*44;
+  let left=x,top=y;
+  if(left+mw>window.innerWidth)left=window.innerWidth-mw-8;
+  if(top+mh>window.innerHeight)top=y-mh;
+  if(top<8)top=8;
+  menu.style.left=left+'px';menu.style.top=top+'px';
+  menu.style.display='block';gi('ctxOverlay').style.display='block';
+}
+function closeCtx(){gi('ctxMenu').style.display='none';gi('ctxOverlay').style.display='none';}
+
+function copyMsg(text){navigator.clipboard?.writeText(text).catch(()=>{});}
+
+// ═══════════ DELETE / EDIT ═══════════
+function deleteForMe(msgKey){
+  localDeleted[msgKey]=true;
+  const el=gi('msg_'+msgKey);
+  if(el)el.remove();
+}
+
+async function deleteForAll(msgKey){
+  if(!CC)return;
+  try{await db.ref(CC.msgPath+'/'+msgKey).remove();}
+  catch(e){alert('Ошибка удаления: '+e.message);}
+}
+
+function confirmClearChat(){
+  if(!confirm('Очистить чат у себя?'))return;
+  const area=gi('msgsArea');
+  area.querySelectorAll('.msg,.msg-system').forEach(el=>{
+    const id=el.id?.replace('msg_','');
+    if(id)localDeleted[id]=true;
+    el.remove();
+  });
+}
+
+async function confirmClearChatAll(){
+  if(!CC)return;
+  if(!confirm('Удалить всю переписку у всех? Это нельзя отменить.'))return;
+  try{await db.ref(CC.msgPath).remove();}
+  catch(e){alert('Ошибка: '+e.message);}
+}
+
+function startEdit(msgKey,text){
+  editMsgKey=msgKey;
+  gi('msgInput').value=text;
+  gi('msgInput').focus();
+  gi('editBar').classList.add('show');
+}
+function cancelEdit(){
+  editMsgKey=null;
+  gi('editBar').classList.remove('show');
+  gi('msgInput').value='';
+}
+
+// ═══════════ REACTIONS ═══════════
+const REACTION_EMOJIS=['👍','❤️','😂','😮','😢','🔥','👎','🙏'];
+
+function openReactionPicker(e,msgKey){
+  e.stopPropagation();
+  const rect=e.target.getBoundingClientRect();
+  showReactionPicker(rect.left,rect.top-60,msgKey);
+}
+function openReactionPickerAt(x,y,msgKey){
+  showReactionPicker(x,y-60,msgKey);
+}
+function showReactionPicker(x,y,msgKey){
+  const picker=gi('reactionPicker');
+  picker.innerHTML=REACTION_EMOJIS.map(e=>`<div class="rp-btn" onclick="toggleReaction(event,'${msgKey}','${e}')">${e}</div>`).join('');
+  const pw=REACTION_EMOJIS.length*38+24;
+  let left=x;
+  if(left+pw>window.innerWidth)left=window.innerWidth-pw-8;
+  if(left<8)left=8;
+  if(y<50)y=50;
+  picker.style.left=left+'px';picker.style.top=y+'px';
+  picker.style.display='flex';
+  gi('rpOverlay').style.display='block';
+}
+function closeReactionPicker(){gi('reactionPicker').style.display='none';gi('rpOverlay').style.display='none';}
+
+async function toggleReaction(e,msgKey,emoji){
+  e.stopPropagation();closeReactionPicker();closeCtx();
+  if(!CC||!msgKey)return;
+  try{
+    const ref=db.ref(CC.msgPath+'/'+msgKey+'/reactions/'+CU.id);
+    const cur=(await ref.once('value')).val();
+    if(cur===emoji)await ref.remove();
+    else await ref.set(emoji);
+  }catch(e){console.error(e);}
+}
+
+// ═══════════ SEND ═══════════
+function sendMsg(txt){
+  const inp=gi('msgInput');
+  const text=(txt||inp.value).trim();
+  if(!text||!CC)return;
+  if(editMsgKey){
+    // Edit mode
+    db.ref(CC.msgPath+'/'+editMsgKey).update({text,edited:true});
+    cancelEdit();return;
+  }
+  db.ref(CC.msgPath).push({
+    senderId:CU.id,senderName:CU.nickname,
+    senderVerified:CU.verified===true||CU.id==='support'||CU.id==='altmessenger',
+    text,timestamp:firebase.database.ServerValue.TIMESTAMP
+  });
+  inp.value='';inp.focus();
+}
+
+function closeChat(){
+  if(offChat){offChat();offChat=null;}
+  if(offGLive){offGLive();offGLive=null;}
+  if(offPresence){offPresence();offPresence=null;}
+  CC=null;cancelEdit();showScreen('mainScreen');
+}
+
+// ═══════════ MEDIA UPLOAD ═══════════
+async function handleUpload(input){
+  const file=input.files[0];input.value='';
+  if(!file||!CC)return;
+  if(file.size>100*1024*1024){alert('Файл слишком большой. Максимум 100 МБ.');return;}
+  const bar=gi('uploadBar'),txt=gi('uploadTxt');
+  txt.textContent='Загрузка '+Math.round(file.size/1024)+'КБ...';bar.classList.add('show');
+  try{
+    const form=new FormData();
+    form.append('reqtype','fileupload');
+    form.append('time','72h');
+    form.append('fileToUpload',file);
+    const res=await fetch('https://litterbox.catbox.moe/resources/internals/api.php',{method:'POST',body:form});
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    const url=(await res.text()).trim();
+    if(!url.startsWith('http'))throw new Error('Неверный ответ');
+    bar.classList.remove('show');
+    sendMsg(url);
+  }catch(e){
+    bar.classList.remove('show');
+    alert('Ошибка загрузки: '+e.message);
+  }
+}
+
+// ═══════════ SEARCH ═══════════
+let searchTmr=null;
+function onSearch(q){clearTimeout(searchTmr);searchTmr=setTimeout(()=>doSearch(q),240);}
+
+async function doSearch(query){
+  const rEl=gi('searchResults'),lEl=gi('chatList');
+  const q=query.trim().toLowerCase().replace(/@/g,'');
+  if(!q){rEl.style.display='none';lEl.style.display='';return;}
+  rEl.style.display='block';lEl.style.display='none';
+  try{
+    const[gs,us]=await Promise.all([
+      db.ref('groups').orderByKey().startAt(q).endAt(q+'\uf8ff').limitToFirst(10).once('value'),
+      db.ref('users').orderByKey().startAt(q).endAt(q+'\uf8ff').limitToFirst(10).once('value')
+    ]);
+    const groups=gs.val()||{},users=us.val()||{};
+    let html='';
+    const gk=Object.keys(groups);
+    if(gk.length){
+      html+='<div class="sr-title">Группы</div>';
+      gk.forEach(gid=>{
+        const g=groups[gid];
+        const avHtml=g.avatar?`<img src="${esc(g.avatar)}" alt="" style="width:100%;height:100%;object-fit:cover;">`:inits(g.name||gid);
+        html+=`<div class="chat-item" onclick="openGroupPreview('${esc(gid)}')">
+          <div class="ava">${avHtml}</div>
+          <div class="chat-info">
+            <div class="chat-name-row">${esc(g.name||gid)}</div>
+            <div class="chat-preview">@${esc(gid)} · ${g.privacy==='private'?'🔒 Приватная':'🌐 Открытая'}</div>
+          </div></div>`;
+      });
+    }
+    const uk=Object.keys(users).filter(uid=>uid!==CU.id);
+    if(uk.length){
+      html+='<div class="sr-title">Пользователи</div>';
+      uk.forEach(uid=>{
+        const u=users[uid],isV=uid==='support'||uid==='altmessenger'||u.verified===true;
+        const avHtml=u.avatar?`<img src="${esc(u.avatar)}" alt="" style="width:100%;height:100%;object-fit:cover;">`:inits(u.nickname||uid);
+        const vm=isV?' <span class="verified">✓</span>':'';
+        html+=`<div class="chat-item" onclick="openDmChat('${esc(uid)}')">
+          <div class="ava" onclick="event.stopPropagation();openProfile('${esc(uid)}')">${avHtml}</div>
+          <div class="chat-info">
+            <div class="chat-name-row">${esc(u.nickname||uid)}${vm}</div>
+            <div class="chat-preview">@${esc(uid)}</div>
+          </div></div>`;
+      });
+    }
+    rEl.innerHTML=html||'<div class="empty-state"><div class="em">🔍</div><p>Ничего не найдено</p></div>';
+  }catch(e){rEl.innerHTML='<div class="empty-state"><p>Ошибка поиска</p></div>';}
+}
+
+function clearSearch(){gi('globalSearch').value='';gi('searchResults').style.display='none';gi('chatList').style.display='';}
+
+// ═══════════ GROUP PREVIEW ═══════════
+async function openGroupPreview(groupId){
+  try{
+    const s=await db.ref('groups/'+groupId).once('value');
+    if(!s.exists()){alert('Группа не найдена');return;}
+    const g=s.val();
+    const joined=(await db.ref('users/'+CU.id+'/joined_groups/'+groupId).once('value')).exists();
+    const avHtml=g.avatar?`<img src="${esc(g.avatar)}" alt="">`:inits(g.name||groupId);
+    const privL=g.privacy==='private'?'🔒 Приватная':'🌐 Открытая';
+    let action=joined
+      ?`<div class="gp-joined">✓ Вы уже участник</div><button class="gp-btn" onclick="openGroupChat('${esc(groupId)}');closeModal('gpModal');clearSearch();" style="margin-top:10px;">Открыть чат</button>`
+      :`<button class="gp-btn" onclick="joinGroup('${esc(groupId)}','${g.privacy==='private'?'private':'public'}')">ВОЙТИ В ГРУППУ</button>`;
+    gi('gpInner').innerHTML=
+      `<button class="modal-close" onclick="closeModal('gpModal')">✕</button>
+       <div class="gp-ava">${avHtml}</div>
+       <div class="gp-name">${esc(g.name||groupId)}</div>
+       <div class="gp-meta">@${esc(groupId)} · ${privL}</div>
+       ${g.bio?`<div class="gp-bio">${esc(g.bio)}</div>`:''}
+       ${action}`;
+    gi('gpModal').classList.add('active');
+  }catch(e){alert('Ошибка загрузки группы');}
+}
+
+async function joinGroup(groupId,privacy){
+  if(privacy==='private'){showAkModal(groupId);return;}
+  try{
+    await db.ref('users/'+CU.id+'/joined_groups/'+groupId).set(true);
+    await db.ref('groups/'+groupId+'/members/'+CU.id).set(true);
+    closeModal('gpModal');clearSearch();openGroupChat(groupId);
+  }catch(e){alert('Ошибка при вступлении');}
+}
+
+function showAkModal(groupId){
+  gi('akInner').innerHTML=
+    `<h3>🔒 Приватная группа</h3><p>Введите ключ доступа</p>
+     <input type="text" id="akIn" placeholder="Ключ доступа" autocomplete="off">
+     <div class="ak-actions">
+       <button class="btn-secondary" onclick="closeModal('akModal')">Отмена</button>
+       <button onclick="submitKey('${esc(groupId)}')">Войти</button>
+     </div>`;
+  gi('akModal').classList.add('active');
+  setTimeout(()=>gi('akIn')?.focus(),300);
+}
+
+async function submitKey(groupId){
+  const key=gi('akIn')?.value.trim()||'';
+  if(!key){alert('Введите ключ');return;}
+  try{
+    const correct=(await db.ref('groups/'+groupId+'/accessKey').once('value')).val();
+    if(key!==correct){alert('Неверный ключ доступа');return;}
+    await db.ref('users/'+CU.id+'/joined_groups/'+groupId).set(true);
+    await db.ref('groups/'+groupId+'/members/'+CU.id).set(true);
+    closeModal('akModal');closeModal('gpModal');clearSearch();openGroupChat(groupId);
+  }catch(e){alert('Ошибка');}
+}
+
+// ═══════════ CREATE GROUP ═══════════
+gi('gPrivToggle').addEventListener('change',function(){gi('gKeyRow').style.display=this.checked?'block':'none';});
+
+function openCreateGroup(){
+  showScreen('createGroupScreen');
+  ['gIdIn','gNameIn','gBioIn','gAvaIn','gKeyIn'].forEach(id=>{const e=gi(id);if(e)e.value='';});
+  gi('gPrivToggle').checked=false;gi('gKeyRow').style.display='none';gi('createGErr').textContent='';
+}
+
+async function createGroup(){
+  const id=val('gIdIn').toLowerCase().trim(),name=val('gNameIn').trim();
+  const bio=val('gBioIn').trim(),avatar=val('gAvaIn').trim();
+  const isPriv=gi('gPrivToggle').checked,key=val('gKeyIn').trim();
+  const err=gi('createGErr');err.textContent='';
+  if(!id||!name){err.textContent='Заполните ID и название';return;}
+  if(!/^[a-z0-9]{4,30}$/.test(id)){err.textContent='ID: только a-z, 0-9 (4–30 символов)';return;}
+  if(isPriv&&!key){err.textContent='Укажите ключ доступа';return;}
+  try{
+    if((await db.ref('groups/'+id).once('value')).exists()){err.textContent='Этот @ID занят';return;}
+    await db.ref('groups/'+id).set({id,name,bio,avatar,privacy:isPriv?'private':'public',accessKey:isPriv?key:'',owner:CU.id,created:Date.now(),members:{[CU.id]:true}});
+    await db.ref('users/'+CU.id+'/joined_groups/'+id).set(true);
+    showScreen('mainScreen');
+  }catch(e){err.textContent='Ошибка: '+e.message;}
+}
+
+// ═══════════ GROUP SETTINGS ═══════════
+async function openGroupSettings(){
+  if(!CC||CC.type!=='group')return;
+  const gid=CC.id;
+  gi('gsInner').innerHTML='<button class="modal-close" onclick="closeModal(\'gsModal\')">✕</button><h3>Настройки группы</h3><div style="padding:20px;text-align:center;"><div class="spinner" style="margin:0 auto;"></div></div>';
+  gi('gsModal').classList.add('active');
+  try{
+    const s=await db.ref('groups/'+gid).once('value');
+    if(!s.exists()||s.val().owner!==CU.id){closeModal('gsModal');return;}
+    renderGS(s.val());
+  }catch(e){closeModal('gsModal');alert('Ошибка загрузки');}
+}
+
+function renderGS(g){
+  const isPriv=g.privacy==='private';
+  gi('gsInner').innerHTML=
+    `<button class="modal-close" onclick="closeModal('gsModal')">✕</button>
+     <h3>Настройки группы</h3>
+     <div class="gs-fields">
+       <label>Название</label>
+       <input type="text" id="gsName" value="${escA(g.name||'')}">
+       <label>Описание</label>
+       <textarea id="gsBio" style="min-height:64px;">${esc(g.bio||'')}</textarea>
+       <label>URL аватара</label>
+       <input type="text" id="gsAva" value="${escA(g.avatar||'')}" placeholder="https://...">
+       <div class="form-row" style="margin-top:2px;">
+         <span class="toggle-label">Приватная группа</span>
+         <label class="toggle">
+           <input type="checkbox" id="gsPriv" ${isPriv?'checked':''} onchange="gi('gsKeyRow').style.display=this.checked?'block':'none'">
+           <span class="slider"></span>
+         </label>
+       </div>
+       <div id="gsKeyRow" style="display:${isPriv?'block':'none'};">
+         <label>Ключ доступа</label>
+         <input type="text" id="gsKey" value="${escA(g.accessKey||'')}">
+       </div>
+     </div>
+     <div class="gs-err" id="gsErr"></div>
+     <div class="gs-actions">
+       <button class="btn-secondary" onclick="closeModal('gsModal')">Отмена</button>
+       <button onclick="saveGS('${esc(g.id)}')">Сохранить</button>
+     </div>
+     <div class="gs-danger">
+       <button onclick="deleteGroup('${esc(g.id)}')">🗑 Удалить группу</button>
+     </div>`;
+}
+
+async function saveGS(groupId){
+  const name=val('gsName').trim(),bio=val('gsBio').trim(),ava=val('gsAva').trim();
+  const isPriv=gi('gsPriv')?.checked,key=val('gsKey').trim();
+  const errEl=gi('gsErr');errEl.textContent='';
+  if(!name){errEl.textContent='Название не может быть пустым';return;}
+  if(isPriv&&!key){errEl.textContent='Укажите ключ доступа';return;}
+  try{
+    await db.ref('groups/'+groupId).update({name,bio:bio||'',avatar:ava||'',privacy:isPriv?'private':'public',accessKey:isPriv?key:''});
+    if(CC&&CC.id===groupId){CC.name=name;CC.ava=ava||'';}
+    closeModal('gsModal');
+  }catch(e){errEl.textContent='Ошибка: '+e.message;}
+}
+
+async function deleteGroup(groupId){
+  if(!confirm('Удалить группу @'+groupId+'?\nЭто нельзя отменить.'))return;
+  try{
+    await db.ref('groups/'+groupId).remove();
+    await db.ref('messages/group_'+groupId).remove();
+    await db.ref('users/'+CU.id+'/joined_groups/'+groupId).remove();
+    closeModal('gsModal');closeChat();
+  }catch(e){alert('Ошибка удаления: '+e.message);}
+}
+
+// ═══════════ ADMIN ═══════════
+function showAdminTab(tab,btn){
+  gi('adminTickets').style.display=tab==='tickets'?'block':'none';
+  const toolsEl=gi('adminTools');
+  toolsEl.style.display=tab==='tools'?'flex':'none';
+  gi('admTab0').style.background=tab==='tickets'?'var(--accent)':'var(--card2)';
+  gi('admTab0').style.color=tab==='tickets'?'#fff':'var(--text)';
+  gi('admTab1').style.background=tab==='tools'?'var(--accent)':'var(--card2)';
+  gi('admTab1').style.color=tab==='tools'?'#fff':'var(--text)';
+}
+
+function openAdminPanel(){
+  showScreen('adminScreen');
+  showAdminTab('tickets',null);
+  const listEl=gi('ticketList');
+  listEl.innerHTML='<div class="empty-state"><div class="spinner" style="margin:0 auto;"></div></div>';
+  if(offAdmin){db.ref('support_chats').off('value',offAdmin);offAdmin=null;}
+  offAdmin=db.ref('support_chats').on('value',async snap=>{
+    const chats=snap.val()||{},keys=Object.keys(chats);
+    if(!keys.length){listEl.innerHTML='<div class="empty-state"><div class="em">📭</div><p>Нет обращений</p></div>';return;}
+    let html='';
+    for(const cid of keys){
+      const c=chats[cid];
+      const uid=c.user||cid.split('_').find(p=>p!=='support')||'?';
+      const u=await fetchUser(uid);
+      const uName=u?u.nickname||uid:uid,uAva=u?u.avatar||'':'';
+      let last='';
+      try{const ms=await db.ref('messages/support_'+cid).orderByKey().limitToLast(1).once('value');ms.forEach(m=>{last=m.val().text||'';});}catch(e){}
+      const avHtml=uAva?`<img src="${esc(uAva)}" alt="">`:inits(uName);
+      html+=`<div class="ticket-item" onclick="openSupportDirect('${esc(cid)}')">
+        <div class="ticket-ava">${avHtml}</div>
+        <div class="ticket-info">
+          <div class="ticket-name">@${esc(uid)} — ${esc(uName)}</div>
+          <div class="ticket-preview">${esc(last)}</div>
+        </div></div>`;
+    }
+    listEl.innerHTML=html;
+  });
+}
+
+// ═══════════ ADMIN ACTIONS ═══════════
+function openAdminAction(action){
+  const titles={ban:'🔨 Заблокировать',unban:'✅ Разблокировать',warn:'⚠️ Выдать варн',scam:'🚨 Пометить SCAM',broadcast:'📢 Рассылка'};
+  let fields='';
+  if(action==='broadcast'){
+    fields=`<label>Текст сообщения</label>
+    <textarea id="admText" placeholder="Текст рассылки..." style="min-height:80px;font-size:14px;padding:10px;"></textarea>`;
+  } else if(action==='ban'){
+    fields=`<label>@ID пользователя</label>
+    <input type="text" id="admUid" placeholder="username" autocapitalize="off">
+    <label>Причина</label>
+    <input type="text" id="admReason" placeholder="Нарушение правил">`;
+  } else if(action==='warn'){
+    fields=`<label>@ID пользователя</label>
+    <input type="text" id="admUid" placeholder="username" autocapitalize="off">
+    <label>Причина</label>
+    <input type="text" id="admReason" placeholder="Причина предупреждения">`;
+  } else {
+    fields=`<label>@ID пользователя</label>
+    <input type="text" id="admUid" placeholder="username" autocapitalize="off">`;
+  }
+  gi('admInner').innerHTML=`
+    <button class="modal-close" onclick="closeModal('admModal')">✕</button>
+    <h3>${titles[action]}</h3>
+    <div class="adm-fields">${fields}</div>
+    <div id="admErr" style="color:var(--danger);font-size:12px;text-align:center;min-height:16px;margin-top:6px;"></div>
+    <div class="adm-actions">
+      <button class="btn-secondary" onclick="closeModal('admModal')">Отмена</button>
+      <button onclick="execAdminAction('${action}')">Применить</button>
+    </div>`;
+  gi('admModal').classList.add('active');
+}
+
+async function execAdminAction(action){
+  const errEl=gi('admErr');errEl.textContent='';
+  if(action==='broadcast'){
+    const text=gi('admText')?.value.trim();
+    if(!text){errEl.textContent='Введите текст';return;}
+    await adminBroadcast(text);
+    closeModal('admModal');
+    alert('Рассылка отправлена!');
+    return;
+  }
+  const uid=gi('admUid')?.value.toLowerCase().trim();
+  if(!uid){errEl.textContent='Введите @ID';return;}
+  const s=await db.ref('users/'+uid).once('value');
+  if(!s.exists()){errEl.textContent='Пользователь не найден';return;}
+  if(action==='ban'){
+    const reason=gi('admReason')?.value.trim()||'Нарушение правил сервиса';
+    await db.ref('users/'+uid).update({isBanned:true,banReason:reason});
+    closeModal('admModal');alert('@'+uid+' заблокирован.');
+  } else if(action==='unban'){
+    await db.ref('users/'+uid).update({isBanned:false,banReason:''});
+    closeModal('admModal');alert('@'+uid+' разблокирован.');
+  } else if(action==='warn'){
+    const reason=gi('admReason')?.value.trim()||'Нарушение правил';
+    const warnKey=Date.now().toString();
+    await db.ref('users/'+uid+'/pendingWarns/'+warnKey).set({reason,ts:Date.now()});
+    // Also send now if user might be online (DM from altmessenger)
+    const dmId=[uid,'altmessenger'].sort().join('_');
+    await db.ref('messages/dm_'+dmId).push({
+      senderId:'altmessenger',senderName:'AltMessenger',senderVerified:true,isSystem:true,
+      text:'⚠️ Предупреждение: '+reason,
+      timestamp:firebase.database.ServerValue.TIMESTAMP
+    });
+    await db.ref('dms/'+dmId).set(true);
+    closeModal('admModal');alert('Варн выдан @'+uid);
+  } else if(action==='scam'){
+    await db.ref('users/'+uid).update({isScam:true});
+    dropCache(uid);
+    closeModal('admModal');alert('@'+uid+' помечен как SCAM.');
+  }
+}
+
+async function adminBroadcast(text){
+  try{
+    const allUsers=await db.ref('users').once('value');
+    const users=allUsers.val()||{};
+    const uids=Object.keys(users).filter(u=>u!=='support'&&u!=='altmessenger');
+    for(const uid of uids){
+      const dmId=[uid,'altmessenger'].sort().join('_');
+      await db.ref('messages/dm_'+dmId).push({
+        senderId:'altmessenger',senderName:'AltMessenger',senderVerified:true,
+        text,timestamp:firebase.database.ServerValue.TIMESTAMP
+      });
+      await db.ref('dms/'+dmId).set(true);
+    }
+  }catch(e){alert('Ошибка рассылки: '+e.message);}
+}
+
+// ═══════════ PROFILE ═══════════
+async function openProfile(userId){
+  if(!userId)return;
+  gi('profileInner').innerHTML='<button class="modal-close" onclick="closeModal(\'profileModal\')">✕</button><div style="padding:40px;text-align:center;"><div class="spinner" style="margin:0 auto;"></div></div>';
+  gi('profileModal').classList.add('active');
+  dropCache(userId);
+  const u=await fetchUser(userId);
+  if(!u){
+    gi('profileInner').innerHTML='<button class="modal-close" onclick="closeModal(\'profileModal\')">✕</button><div style="padding:36px;text-align:center;color:var(--text2);">Пользователь не найден<br><small>@'+esc(userId)+'</small></div>';
+    return;
+  }
+  renderProfile(u);
+}
+
+function renderProfile(u){
+  const isOwn=u.id===CU.id;
+  const isSupport=u.id==='support';
+  const isAltMsg=u.id==='altmessenger';
+  const isVerified=u.verified===true;
+  const isScam=u.isScam===true;
+  const isAdm=isAdmin();
+  const avHtml=u.avatar?`<img src="${esc(u.avatar)}" alt="">`:inits(u.nickname||u.id);
+  const vm=(isSupport||isAltMsg||isVerified)?' <span class="verified">✓</span>':'';
+  const rb=u.role==='admin'?'<span class="admin-badge" style="margin-left:6px;">ADMIN</span>':'';
+  // Online status line
+  let statusLine='';
+  if(!isOwn){
+    if(u.lastSeen==='online')statusLine='<div style="color:var(--success);font-size:12px;margin-top:2px;">● В сети</div>';
+    else if(u.lastSeen)statusLine=`<div style="font-size:12px;color:var(--text2);margin-top:2px;">${fmtLastSeen(u.lastSeen)}</div>`;
+  }
+  let body='';
+  if(isOwn){
+    body=`<div class="edit-fields">
+      <label>Никнейм</label><input type="text" id="eNick" value="${escA(u.nickname||'')}">
+      <label>Био</label><textarea id="eBio">${esc(u.bio||'')}</textarea>
+      <label>URL аватара</label><input type="text" id="eAva" value="${escA(u.avatar||'')}" placeholder="https://...">
+    </div>
+    <div class="p-actions">
+      <button class="btn-secondary" onclick="closeModal('profileModal')">Отмена</button>
+      <button onclick="saveProfile()">Сохранить</button>
+    </div>`;
+  } else {
+    if(isAltMsg)body+=`<div class="support-warn">ℹ️ Официальный аккаунт AltMessenger. Если вам пишет кто-то без галочки — это фейк!</div>`;
+    if(isSupport)body+=`<div class="support-warn">⚠️ Официальный аккаунт поддержки. Если вам пишет кто-то от лица поддержки — это мошенники, мы не пишем первыми.</div>`;
+    if(isScam)body+=`<div class="scam-warn">🚨 SCAM: Данный пользователь может вас обмануть на деньги. Остерегайтесь!</div>`;
+    if(u.bio)body+=`<div class="p-bio">${esc(u.bio)}</div>`;
+    if(isVerified&&!isSupport&&!isAltMsg)body+=`<div class="v-badge">✓ Verified by Owner</div>`;
+    if(isAdm&&!isSupport&&!isAltMsg&&u.id!==CU.id){
+      body+=isVerified
+        ?`<button class="v-btn btn-danger" style="margin-top:10px;" onclick="toggleVerify('${esc(u.id)}',false)">Снять верификацию ✕</button>`
+        :`<button class="v-btn" onclick="toggleVerify('${esc(u.id)}',true)">Дать верификацию ✓</button>`;
+    }
+    body+=`<div class="p-actions"><button onclick="closeModal('profileModal');openDmChat('${esc(u.id)}')">Написать</button></div>`;
+  }
+  gi('profileInner').innerHTML=
+    `<button class="modal-close" onclick="closeModal('profileModal')">✕</button>
+     <div class="p-ava">${avHtml}</div>
+     <div class="p-name">${esc(u.nickname||u.id)}${vm}${rb}</div>
+     <div class="p-id">@${esc(u.id)}</div>
+     ${statusLine}${body}`;
+}
+
+async function toggleVerify(uid,v){
+  try{await db.ref('users/'+uid+'/verified').set(v);dropCache(uid);openProfile(uid);}
+  catch(e){alert('Ошибка: '+e.message);}
+}
+
+async function saveProfile(){
+  const nick=val('eNick').trim(),bio=val('eBio').trim(),ava=val('eAva').trim();
+  if(!nick){alert('Никнейм не может быть пустым');return;}
+  try{
+    await db.ref('users/'+CU.id).update({nickname:nick,bio:bio||'',avatar:ava||''});
+    CU.nickname=nick;CU.bio=bio||'';CU.avatar=ava||'';save();dropCache(CU.id);
+    closeModal('profileModal');
+  }catch(e){alert('Ошибка: '+e.message);}
+}
+
+// ═══════════ MODALS ═══════════
+function closeModal(id){gi(id).classList.remove('active');}
+['profileModal','gpModal','akModal','gsModal','gmModal','admModal'].forEach(id=>{
+  gi(id).addEventListener('click',function(e){if(e.target===this)closeModal(id);});
+});
+
+// ═══════════ IMAGE VIEWER ═══════════
+function openImgViewer(src){gi('imgViewerImg').src=src;gi('imgViewer').classList.add('on');}
+function closeImgViewer(){gi('imgViewer').classList.remove('on');}
+
+// ═══════════ KEYBOARD FIX (mobile) ═══════════
+if(window.visualViewport){
+  window.visualViewport.addEventListener('resize',()=>{if(CC)scrollBot();});
+}
+
+// ═══════════ BOOT ═══════════
+(function boot(){
+  const saved=localStorage.getItem('cu');
+  if(saved){
+    try{
+      CU=JSON.parse(saved);
+      if(CU&&CU.id){
+        db.ref('users/'+CU.id).once('value').then(s=>{
+          if(s.exists()){
+            const d=s.val();
+            if(d.isBanned){showBanScreen(d.banReason||'Нарушение правил сервиса');CU=null;return;}
+            CU={...CU,...d};
+          }
+          save();
+          checkPendingWarns();
+          initApp();
+        }).catch(()=>initApp());
+        return;
+      }
+    }catch(e){}
+  }
+  showScreen('authScreen');
+})();
+</script>
+</body>
+</html>
